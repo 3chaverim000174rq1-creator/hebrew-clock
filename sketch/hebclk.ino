@@ -6,6 +6,8 @@
 #include <WiFiClientSecure.h>
 #include <WebServer.h>
 #include <time.h>
+#include <Fonts/FreeSansBold18pt7b.h>
+#include <Fonts/FreeSans12pt7b.h>
 
 // XIAO ESP32C3 → Waveshare 7.5" V2 wiring
 #define EPD_CS   D2
@@ -320,6 +322,36 @@ void fetchAndDisplay() {
     Serial.printf("Display updated (%s refresh)\n", fullRefresh ? "full" : "partial");
 }
 
+// ── Info screens ─────────────────────────────────────
+
+static void showTextScreen(const String& title, const String& sub, const String& detail = "") {
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.setFullWindow();
+    display.firstPage();
+    do {
+        display.fillScreen(GxEPD_WHITE);
+        display.setTextColor(GxEPD_BLACK);
+        display.drawRect(8, 8, 800 - 16, 480 - 16, GxEPD_BLACK);
+
+        display.setFont(&FreeSansBold18pt7b);
+        display.getTextBounds(title.c_str(), 0, 0, &x1, &y1, &w, &h);
+        display.setCursor((800 - w) / 2, 170);
+        display.print(title);
+
+        display.setFont(&FreeSans12pt7b);
+        display.getTextBounds(sub.c_str(), 0, 0, &x1, &y1, &w, &h);
+        display.setCursor((800 - w) / 2, 265);
+        display.print(sub);
+
+        if (detail.length()) {
+            display.getTextBounds(detail.c_str(), 0, 0, &x1, &y1, &w, &h);
+            display.setCursor((800 - w) / 2, 325);
+            display.print(detail);
+        }
+    } while (display.nextPage());
+}
+
 // ── Setup ─────────────────────────────────────────────
 
 void setup() {
@@ -348,6 +380,15 @@ void setup() {
         prefs.end();
     });
 
+    wm.setAPCallback([](WiFiManager *wm) {
+        String ssid = wm->getConfigPortalSSID();
+        String ip   = WiFi.softAPIP().toString();
+        Serial.printf("AP started — SSID: %s  IP: %s\n", ssid.c_str(), ip.c_str());
+        showTextScreen("Wi-Fi Setup",
+                       "Connect to:  " + ssid,
+                       "Then open:   " + ip);
+    });
+
     wm.resetSettings();
     if (!wm.autoConnect("EPaper-Setup")) {
         Serial.println("WiFi failed — restarting");
@@ -355,6 +396,9 @@ void setup() {
     }
     Serial.print("WiFi connected, IP: ");
     Serial.println(WiFi.localIP());
+
+    showTextScreen("Connected", WiFi.localIP().toString());
+    delay(2000);
 
     // Sync time via NTP (Israel timezone with automatic DST)
     configTzTime("IST-2IDT,M3.4.4/26,M10.5.0", "pool.ntp.org");
