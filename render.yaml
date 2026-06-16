@@ -9,8 +9,6 @@ services:
       - key: FONT_DIR
         value: .
       - key: DISPLAY_LAG
-        value: 8
-        sync: false
+        value: "8"
       - key: LOG_LEVEL
         value: info
-        sync: false
