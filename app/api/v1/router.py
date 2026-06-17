@@ -101,7 +101,7 @@ async def get_kindle(
         img {{
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: fill;
             image-rendering: pixelated;
         }}
     </style>
@@ -112,7 +112,7 @@ async def get_kindle(
             url.searchParams.set('_t', new Date().getTime());
             img.src = url.toString();
         }}
-        setInterval(refreshImage, 60000 * 5); // 5 minutes
+        setInterval(refreshImage, 60000); // 1 minute
     </script>
 </head>
 <body>
