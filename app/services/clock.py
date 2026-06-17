@@ -263,6 +263,7 @@ def generate_clock_image(
     sleep_time:  bool       = False,
     weather:     dict | None = None,
     jewish_date: str | None  = None,
+    hide_clock:  bool       = False,
 ) -> bytes:
     fn = font_name if font_name in VALID_FONTS else DEFAULT_FONT
 
@@ -292,7 +293,8 @@ def generate_clock_image(
     font_small  = get_font(34,  fn)
 
     clock_cx, clock_cy, clock_r = W // 2, PAD2 + 75, 68
-    _draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m, fn)
+    if not hide_clock:
+        _draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m, fn)
 
     text_start_y = clock_cy + clock_r + 15
     text_area_h  = H - 110 - text_start_y
@@ -373,6 +375,39 @@ def generate_clock_image(
                   font=font_small, fill=0, anchor="mm")
 
     return _png_bytes(img)
+
+
+def _empty_png() -> bytes:
+    img = Image.new("1", (1, 1), color=255)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", transparency=255, optimize=True)
+    buf.seek(0)
+    return buf.read()
+
+def generate_analog_clock_image(
+    font_name: str = DEFAULT_FONT,
+    sleep_time: bool = False,
+) -> bytes:
+    if sleep_time:
+        return _empty_png()
+
+    now = get_israel_time()
+    h24, m = now.hour, now.minute
+
+    if h24 == 6 or (h24 == 7 and m < 30):
+        return _empty_png()
+
+    fn = font_name if font_name in VALID_FONTS else DEFAULT_FONT
+    S = 140
+    img = Image.new("L", (S, S), color=255)
+    draw = ImageDraw.Draw(img)
+    _draw_analog_clock(draw, S // 2, S // 2, 68, h24, m, fn)
+
+    buf = io.BytesIO()
+    img = img.convert("1", dither=Image.Dither.NONE)
+    img.save(buf, format="PNG", transparency=255, optimize=True)
+    buf.seek(0)
+    return buf.read()
 
 
 def log_available_fonts() -> None:

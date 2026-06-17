@@ -32,6 +32,7 @@ async def get_clock(
     sleeptime: str = Query(default="0"),
     location:  str = Query(default="Tel Aviv"),
     calendar:  str = Query(default="gregorian"),
+    hide_clock: str = Query(default="0"),
 ) -> Response:
     loc = location or "Tel Aviv"
     w = await weather_svc.get_weather(loc, request.app.state.http_client)
@@ -47,6 +48,28 @@ async def get_clock(
         sleep_time  = sleeptime == "1",
         weather     = w,
         jewish_date = jdate,
+        hide_clock  = hide_clock == "1",
+    )
+    return Response(
+        content=img_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+@router.get(
+    "/analog_clock.png",
+    responses={200: {"content": {"image/png": {}}}},
+    response_class=Response,
+)
+async def get_analog_clock(
+    request:  Request,
+    font:      str = Query(default=DEFAULT_FONT),
+    sleeptime: str = Query(default="0"),
+) -> Response:
+    img_bytes = await run_in_threadpool(
+        clock.generate_analog_clock_image,
+        font_name=font,
+        sleep_time=sleeptime == "1",
     )
     return Response(
         content=img_bytes,
@@ -70,9 +93,17 @@ async def get_kindle(
         "sleeptime": sleeptime,
         "location": location,
         "calendar": calendar,
+        "hide_clock": "1",
         "_t": int(time.time())
     })
     img_url = f"/clock.png?{params}"
+
+    analog_params = urllib.parse.urlencode({
+        "font": font,
+        "sleeptime": sleeptime,
+        "_t": int(time.time())
+    })
+    analog_url = f"/analog_clock.png?{analog_params}"
     
     html = f"""<!DOCTYPE html>
 <html>
@@ -97,21 +128,29 @@ async def get_kindle(
             width: 100vh;
             height: 100vw;
             transform: translate(-50%, -50%) rotate(90deg);
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }}
-        img {{
+        .main-clock {{
             width: 100%;
             height: 100%;
             object-fit: fill;
             image-rendering: pixelated;
         }}
+        .analog-clock {{
+            position: absolute;
+            top: 18.958%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            height: 28.333%;
+            width: auto;
+            image-rendering: pixelated;
+            z-index: 10;
+        }}
     </style>
 </head>
 <body>
     <div class="rotated-container">
-        <img id="clock-img" src="{img_url}" alt="Clock">
+        <img class="main-clock" src="{img_url}" alt="Clock">
+        <img class="analog-clock" src="{analog_url}" alt="Analog Clock">
     </div>
 </body>
 </html>"""
