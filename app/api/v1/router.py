@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, HTMLResponse
 import urllib.parse
+import time
 
 from app.services import clock, weather as weather_svc, jewish_cal as jewish_cal_svc
 
@@ -68,7 +69,8 @@ async def get_kindle(
         "font": font,
         "sleeptime": sleeptime,
         "location": location,
-        "calendar": calendar
+        "calendar": calendar,
+        "_t": int(time.time())
     })
     img_url = f"/clock.png?{params}"
     
@@ -77,6 +79,7 @@ async def get_kindle(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
     <title>Hebrew Clock - Kindle</title>
     <style>
         body, html {{
@@ -105,15 +108,6 @@ async def get_kindle(
             image-rendering: pixelated;
         }}
     </style>
-    <script>
-        function refreshImage() {{
-            const img = document.getElementById('clock-img');
-            const url = new URL(img.src, window.location.origin);
-            url.searchParams.set('_t', new Date().getTime());
-            img.src = url.toString();
-        }}
-        setInterval(refreshImage, 60000); // 1 minute
-    </script>
 </head>
 <body>
     <div class="rotated-container">
@@ -121,4 +115,11 @@ async def get_kindle(
     </div>
 </body>
 </html>"""
-    return HTMLResponse(content=html)
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+    )
